@@ -3,6 +3,7 @@ const client = new Discord.Client();
 const config = require("./config.json");
 const https = require("https");
 const fs = require("fs");
+const update = require("./update.js")
 
 function httpsget(url) {	//async function for http get requests url in data out. It just works
 	return new Promise((resolve, reject) => {
@@ -24,16 +25,23 @@ async function getList() {	//function to get and save list of all apps registere
 
 client.on("ready", () => {	//log bot startup
 	console.log("Client started");
+	client.generateInvite(536995856)
+		.then(link => console.log(`Generated bot invite link: ${link}`))
+		.catch(console.error);
 });
 
 client.on("message", (message) => {		//messages event listener
-	const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
-	try{
-		let command = require('./update.js');
-		command.run(client, args);
-	} catch (err) {
-		console.error(err);
+	if (message.author.bot) {
+		return;
 	}
+	if (message.channel.id == 295061260381454336 && message.content.length > 1){
+		try{
+			update.run(client, message);
+		} catch (err) {
+			console.error(err);
+		}
+	}
+	
 });
 
 client.on("error", () => {});	//bot error handling (prevents crash on loss of network connection)
