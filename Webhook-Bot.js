@@ -31,9 +31,7 @@ client.on("ready", () => {	//log bot startup
 });
 
 client.on("message", (message) => {		//messages event listener
-	if (message.author.bot) {
-		return;
-	}
+	if (message.author.bot) return;
 	if (message.channel.id == 295061260381454336 && message.content.length > 1){
 		try{
 			update.run(client, message);

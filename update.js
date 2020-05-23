@@ -38,39 +38,41 @@ function getCandidates(arg) {	//gets a list of candidates for the query
 	});
 }
 
-function messageValidate(message, candidates, i) {		// verifies that user input in game selection is a valid input (moved to function to enable recursive structure)
+async function messageValidate(message, candidates, i) {		// verifies that user input in game selection is a valid input (moved to function to enable recursive structure)
 	const filter = m => m.author.id === message.author.id;
-	message.channel.awaitMessages(filter, {max: 1, time: 60000, errors: ['time']})
-		.then((collected) => {
-			let j = parseInt(collected.first().content.trim(),10);
-			console.log(j);
-			if (j >= 1 && j <= i) {
-				return candidates[j-1].appid;
-			} else {
-				message.channel.send(`Please enter a number between 1 and ${i}`);
-				return meessageValidate(message, candidates, i);
-			}
-		});
+	let collected = await message.channel.awaitMessages(filter, {max: 1, time: 60000, errors: ['time']})
+	let j = parseInt(collected.first().content.trim(),10);
+	if (j >= 1 && j <= i) {
+		return candidates[j-1].appid;
+	} else {
+		message.channel.send(`Please enter a number between 1 and ${i}`);
+		return meessageValidate(message, candidates, i);
+	}
 }
 
-function getUpdate(arg) {	//gets the latest update for the selected game and formats it for sending as an embed
-	data = httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appid}&count=1`)
-	while (!(data.appnews.newsitems[0].feedname === "steam_community_announcements")) {
-		data = httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appid}&count=1&enddate=${data.appnews.newsitems[0].date}`)
+async function getUpdate(message, appid) {	//gets the latest update for the selected game and formats it for sending as an embed
+	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appid}&count=1`));
+	//console.log(data.appnews.newsitems[0]);
+	for (i = 1; !(data.appnews.newsitems[0].feedname === "steam_community_announcements"); i++) {
+		data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appid}&count=1&enddate=${data.appnews.newsitems[0].date}`));
 	}
-	totalLength = data.appnews.newsitems[0].title.length + data.appnews.newsitems[0].url.length + data.appnews.newsitems[0].author.length + data.appnews.newsitems[0].date.toString().length + content.length;
+	totalLength = data.appnews.newsitems[0].title.length + data.appnews.newsitems[0].url.length + data.appnews.newsitems[0].author.length + data.appnews.newsitems[0].date.toString().length + data.appnews.newsitems[0].contents.length;
 	if(totalLength > 6000) {
 
 	}else{
 		let embed = new discord.MessageEmbed()
 			.setTitle(data.appnews.newsitems[0].title)
 			.setAuthor(data.appnews.newsitems[0].author)
+			.setDescription(data.appnews.newsitems[0].contents)
 			.setURL(data.appnews.newsitems[0].url)
-			.setTimestamp(data.appnews.newsitems[0].date)
+			.setThumbnail(`https://steamcdn-a.akamaihd.net/steam/apps/${appid}/logo.png`)
+			.setTimestamp(data.appnews.newsitems[0].date);
+		console.log(embed.toJSON());
+		message.channel.send(embed);
 	}
 }
 
-exports.run = (client, message) => {
+exports.run = async (client, message) => {
 	let candidates = getCandidates(message.content);
 	let appid = "";
 
@@ -82,9 +84,9 @@ exports.run = (client, message) => {
 			i++;
 		}
 		message.channel.send(prompt);
-		appid = messageValidate(message, candidates, i);
+		appid = await messageValidate(message, candidates, i);
 	} else {
 		appid = candidates[0].appid;
 	}
-	getUpdate(appid);
+	getUpdate(message, appid);
 }
