@@ -55,13 +55,17 @@ async function messageValidate(message, candidates, i) {		// verifies that user 
  
 async function getUpdate(message, app) {	//gets the latest update for the selected game and formats it for sending as an embed
 	messagesForDeletion.push((await message.channel.send(`Searching for news for ${app.name}.`)).id);
-	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1`));
+	let batchSize = 10;
+	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=${batchSize}`));
 	if (data.appnews.count === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`))
-	for (i = 1; !(data.appnews.newsitems[0].feedname === "steam_community_announcements"); i++) {
-		//if ((i+1) > data.appnews.count) return message.channel.send(`No news found for "${message.content}".`);
-		data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1&enddate=${data.appnews.newsitems[0].date-1}`));
-		if (data.appnews.newsitems.length === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`));
+	for (i = 0; !(data.appnews.newsitems[i].feedname === "steam_community_announcements"); i++)
+		if (i === data.appnews.newsitems.length-1) {
+			data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=${batchSize}&enddate=${data.appnews.newsitems[i].date-1}`));
+			if (data.appnews.newsitems.length === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`));
+			i = -1;
+		}
 	}
+	
 	let contents = cleanText(data.appnews.newsitems[0].contents);
 	
 	if(contents.content.length > 2048) {
