@@ -19,7 +19,7 @@ function httpsget(url) {	//async function for http get requests url in data out.
 			res.on('error', reject);
 		}).on('error', reject);
 	});
-}	
+}
 
 function getCandidates(arg) {	//gets a list of candidates for the query
 	arg = arg.replace(/[^\da-zA-Z]/g, '').toLowerCase();	//strips names in app list of non alphanumeric characters
@@ -132,8 +132,10 @@ exports.run = async (client, message) => {
 		let body = [""];
 		let i = 0;
 		let j = 0;
+		let developers = [];
+		for (e of candidates)  developers.push(JSON.parse(await httpsget(`https://steamspy.com/api.php?request=appdetails&appid=${e.appid}`)).developer);
+		await Promise.all(developers);
 		for (e of candidates) {
-			let developer = JSON.parse(await httpsget(`https://steamspy.com/api.php?request=appdetails&appid=${e.appid}`)).developer;
 			i++;
 			if (i%10 == 1 && i != 1) {
 				let embed = new discord.MessageEmbed().setDescription(body[j]).setFooter(`Showing page ${j+1} of ${Math.ceil(candidates.length/10)}`);
@@ -142,7 +144,7 @@ exports.run = async (client, message) => {
 				j++;
 				body[j] = "";
 			}
-			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}') by ${developer}`;
+			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}') by ${developers[i-1]}`;
 		}
 		let embed = new discord.MessageEmbed().setDescription(body[j]).setFooter(`Showing page ${j+1} of ${j+1}`);
 		messagesForDeletion.push((await message.channel.send(embed)).id);
