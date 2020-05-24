@@ -3,6 +3,8 @@ const leven = require('leven');
 const discord = require('discord.js');
 const applist = require('./applist.json');
 
+let messagesForDeletion = [];
+
 function httpsget(url) {	//async function for http get requests url in data out. It just works
 	return new Promise((resolve, reject) => {
 		https.get(url, (res) => {
@@ -40,7 +42,8 @@ function getCandidates(arg) {	//gets a list of candidates for the query
 
 async function messageValidate(message, candidates, i) {		// verifies that user input in game selection is a valid input (moved to function to enable recursive structure)
 	const filter = m => m.author.id === message.author.id;
-	let collected = await message.channel.awaitMessages(filter, {max: 1, time: 60000, errors: ['time']})
+	let collected = await message.channel.awaitMessages(filter, {max: 1, time: 30000, errors: ['time']})
+	messagesForDeletion.push(collected.first().id)
 	let j = parseInt(collected.first().content.trim(),10);
 	if (j >= 1 && j <= i) {
 		return candidates[j-1];
@@ -51,11 +54,13 @@ async function messageValidate(message, candidates, i) {		// verifies that user 
 }
  
 async function getUpdate(message, app) {	//gets the latest update for the selected game and formats it for sending as an embed
+	messagesForDeletion.push((await message.channel.send(`Searching for news for ${app.name}.`)).id);
 	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1`));
-	if (data.appnews.count === 0) return message.channel.send("No news found for this app.")
+	if (data.appnews.count === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`))
 	for (i = 1; !(data.appnews.newsitems[0].feedname === "steam_community_announcements"); i++) {
-		if ((i+1) > data.appnews.count) return message.channel.send("No news found for this app.");
-		data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1&enddate=${data.appnews.newsitems[0].date}`));
+		//if ((i+1) > data.appnews.count) return message.channel.send(`No news found for "${message.content}".`);
+		data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1&enddate=${data.appnews.newsitems[0].date-1}`));
+		if (data.appnews.newsitems.length === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`));
 	}
 	let contents = cleanText(data.appnews.newsitems[0].contents);
 	
@@ -110,32 +115,46 @@ function cleanText(content) {
         imageList.push(url);
         
     }
+    content = content.split('[i]').join('*');
+    content = content.split('[/i]').join('*');
+    content = content.split('[b]').join('**');
+    content = content.split('[/b]').join('**');
+    content = content.split('[u]').join('__');
+    content = content.split('[/u]').join('__');
     return {content, imageList};
 }
 
 exports.run = async (client, message) => {
+	messagesForDeletion = [];
 	let candidates = getCandidates(message.content);
 	let appid = "";
 	if (candidates.length > 1) {		//if multiple results match the lowest levenshtein number asks the user to verify their intended game
-		let body = [];
+		let body = [""];
 		let i = 0;
-		let j = -1;
-		for (e of candidates){
+		let j = 0;
+		for (e of candidates) {
+			let developer = JSON.parse(await httpsget(`https://steamspy.com/api.php?request=appdetails&appid=${e.appid}`)).developer;
 			i++;
-			if (i%10==1) {
+			if (i%10 == 1 && i != 1) {
+				let embed = new discord.MessageEmbed().setDescription(body[j]).setFooter(`Showing page ${j+1} of ${Math.ceil(candidates.length/10)}`);
+				if(j == 0) embed.setTitle("Multiple results match this search. Reply with the number of your intended game.");
+				messagesForDeletion.push((await message.channel.send(embed)).id);
 				j++;
 				body[j] = "";
 			}
-			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}')`;
+			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}') by ${developer}`;
 		}
-		for (k = 0; k < body.length; k++){
+		let embed = new discord.MessageEmbed().setDescription(body[j]).setFooter(`Showing page ${j+1} of ${j+1}`);
+		messagesForDeletion.push((await message.channel.send(embed)).id);
+		/*for (k = 0; k < body.length; k++){
 			let embed = new discord.MessageEmbed().setDescription(body[k]);
-			if(k===0) embed.setTitle("Multiple results match this search. Reply with the number of your intended game.");
+			if(k == 0) embed.setTitle("Multiple results match this search. Reply with the number of your intended game.");
 			message.channel.send(embed);	
-		}
+		}*/
 		app = await messageValidate(message, candidates, i);
 	} else {
 		app = candidates[0];
 	}
-	getUpdate(message, app);
+	await getUpdate(message, app);
+	message.channel.bulkDelete(messagesForDeletion);
 }

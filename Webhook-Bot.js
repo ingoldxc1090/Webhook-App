@@ -31,7 +31,7 @@ client.on("ready", () => {	//log bot startup
 
 client.on("message", (message) => {		//messages event listener
 	if (message.author.bot) return;
-	if (message.channel.id == 295061260381454336 && message.content.length > 1){
+	if (message.channel.id == 295061260381454336 && !(parseInt(message.content) <= 100)) {
 		try{
 			const update = require("./update.js");
 			update.run(client, message);
