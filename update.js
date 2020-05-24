@@ -119,14 +119,20 @@ exports.run = async (client, message) => {
 	if (candidates.length > 1) {		//if multiple results match the lowest levenshtein number asks the user to verify their intended game
 		let body = [];
 		let i = 0;
+		let j = -1;
 		for (e of candidates){
 			i++;
-			body+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}')`;
+			if (i%10==1) {
+				j++;
+				body[j] = "";
+			}
+			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}')`;
 		}
-		let embed = new discord.MessageEmbed()
-			.setTitle("Multiple results match this search. Reply with the number of your intended game.")
-			.setDescription(body);
-		message.channel.send(embed);
+		for (k = 0; k < body.length; k++){
+			let embed = new discord.MessageEmbed().setDescription(body[k]);
+			if(k===0) embed.setTitle("Multiple results match this search. Reply with the number of your intended game.");
+			message.channel.send(embed);	
+		}
 		app = await messageValidate(message, candidates, i);
 	} else {
 		app = candidates[0];
