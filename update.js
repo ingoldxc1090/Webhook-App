@@ -43,33 +43,74 @@ async function messageValidate(message, candidates, i) {		// verifies that user 
 	let collected = await message.channel.awaitMessages(filter, {max: 1, time: 60000, errors: ['time']})
 	let j = parseInt(collected.first().content.trim(),10);
 	if (j >= 1 && j <= i) {
-		return candidates[j-1].appid;
+		return candidates[j-1];
 	} else {
 		message.channel.send(`Please enter a number between 1 and ${i}`);
-		return meessageValidate(message, candidates, i);
+		return messageValidate(message, candidates, i);
 	}
 }
-
-async function getUpdate(message, appid) {	//gets the latest update for the selected game and formats it for sending as an embed
-	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appid}&count=1`));
-	//console.log(data.appnews.newsitems[0]);
+ 
+async function getUpdate(message, app) {	//gets the latest update for the selected game and formats it for sending as an embed
+	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1`));
+	if (data.appnews.count === 0) return message.channel.send("No news found for this app.")
 	for (i = 1; !(data.appnews.newsitems[0].feedname === "steam_community_announcements"); i++) {
-		data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appid}&count=1&enddate=${data.appnews.newsitems[0].date}`));
+		if ((i+1) > data.appnews.count) return message.channel.send("No news found for this app.");
+		data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1&enddate=${data.appnews.newsitems[0].date}`));
 	}
-	totalLength = data.appnews.newsitems[0].title.length + data.appnews.newsitems[0].url.length + data.appnews.newsitems[0].author.length + data.appnews.newsitems[0].date.toString().length + data.appnews.newsitems[0].contents.length;
-	if(totalLength > 6000) {
-
+	let contents = cleanText(data.appnews.newsitems[0].contents);
+	
+	if(contents.content.length > 2048) {
+		for (i = 1; i <= Math.ceil(contents.content.length/2048); i++) {
+			let embed = new discord.MessageEmbed()
+				.setAuthor(app.name + " News")
+				.setURL(data.appnews.newsitems[0].url)
+				.setThumbnail(`https://steamcdn-a.akamaihd.net/steam/apps/${app.appid}/logo.png`)
+				.setTimestamp(data.appnews.newsitems[0].date*1000);
+			if (contents.imageList.length >= i) embed.setImage(contents.imageList[i-1]);
+			if (i = Math.ceil(contents.content.length/2048)) embed.setDescription(contents.content.substring((i-1)*2048, contents.content.length-1));
+			else embed.setDescription(contents.content.substring((i-1)*2048, (i*2048)-1));
+			if (`${data.appnews.newsitems[0].title} (${i}/${Math.ceil(contents.content.length/2048)})`.length > 256) embed.setTitle(data.appnews.newsitems[0].title.substring(256 - `... (${i}/${Math.ceil(contents.content.length/2048)})`.length) + `... (${i}/${Math.ceil(contents.content.length/2048)})`);
+			else embed.setTitle(data.appnews.newsitems[0].title + ` (${i}/${Math.ceil(contents.content.length/2048)})`);
+			message.channel.send(embed);
+		}
 	}else{
 		let embed = new discord.MessageEmbed()
 			.setTitle(data.appnews.newsitems[0].title)
-			.setAuthor(data.appnews.newsitems[0].author)
-			.setDescription(data.appnews.newsitems[0].contents)
+			.setAuthor(app.name + " News")
+			.setDescription(contents.content)
 			.setURL(data.appnews.newsitems[0].url)
-			.setThumbnail(`https://steamcdn-a.akamaihd.net/steam/apps/${appid}/logo.png`)
-			.setTimestamp(data.appnews.newsitems[0].date);
-		console.log(embed.toJSON());
+			.setThumbnail(`https://steamcdn-a.akamaihd.net/steam/apps/${app.appid}/logo.png`)
+			.setTimestamp(data.appnews.newsitems[0].date*1000);
+		if (contents.imageList.length > 0) embed.setImage(contents.imageList[0]);
+		if (data.appnews.newsitems[0].title.length > 256) embed.setTitle(data.appnews.newsitems[0].title.substring(256 - '...'.length));
+		else embed.setTitle(data.appnews.newsitems[0].title);
 		message.channel.send(embed);
 	}
+}
+
+function cleanText(content) {
+	var startIndex = 0, index;
+    while ((index = content.indexOf('[url=', startIndex)) > -1) {
+       	startIndex = index + '[url='.length;
+       	let url = content.substring(startIndex, content.indexOf(']', startIndex));
+       	content = content.replace(('[url=' + url + ']'), '');
+       	startIndex-='[url='.length;
+       	let linkText = content.substring(startIndex, content.indexOf('[/url]', startIndex))
+       	content = content.replace((linkText + '[/url]'), `[${linkText}](${url} 'optional hovertext')`);
+    }
+    const clanImage = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/clans';
+    startIndex = 0;
+    index = undefined; 
+    imageList = [];
+    while ((index = content.indexOf('[img]', startIndex)) > -1) {
+        startIndex = index + '[img]'.length;
+        let url = content.substring(startIndex, content.indexOf('[/img]', startIndex));
+        content = content.replace(('[img]' + url + '[/img]'), '');
+        url = url.replace('{STEAM_CLAN_IMAGE}', clanImage);
+        imageList.push(url);
+        
+    }
+    return {content, imageList};
 }
 
 exports.run = async (client, message) => {
@@ -84,9 +125,9 @@ exports.run = async (client, message) => {
 			i++;
 		}
 		message.channel.send(prompt);
-		appid = await messageValidate(message, candidates, i);
+		app = await messageValidate(message, candidates, i);
 	} else {
-		appid = candidates[0].appid;
+		app = candidates[0];
 	}
-	getUpdate(message, appid);
+	getUpdate(message, app);
 }

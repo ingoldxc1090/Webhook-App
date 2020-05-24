@@ -1,9 +1,8 @@
 const Discord = require("discord.js");
 const client = new Discord.Client();
-const config = require("./config.json");
 const https = require("https");
 const fs = require("fs");
-const update = require("./update.js")
+const config = require("./config.json");
 
 function httpsget(url) {	//async function for http get requests url in data out. It just works
 	return new Promise((resolve, reject) => {
@@ -34,6 +33,7 @@ client.on("message", (message) => {		//messages event listener
 	if (message.author.bot) return;
 	if (message.channel.id == 295061260381454336 && message.content.length > 1){
 		try{
+			const update = require("./update.js");
 			update.run(client, message);
 		} catch (err) {
 			console.error(err);
