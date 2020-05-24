@@ -116,15 +116,17 @@ function cleanText(content) {
 exports.run = async (client, message) => {
 	let candidates = getCandidates(message.content);
 	let appid = "";
-
 	if (candidates.length > 1) {		//if multiple results match the lowest levenshtein number asks the user to verify their intended game
-		let prompt = "Multiple results match this search. Reply with the number of your intended game."
-		let i = 1;
+		let body = [];
+		let i = 0;
 		for (e of candidates){
-			prompt+=`\n${i}. <https://store.steampowered.com/app/${e.appid}>`;
 			i++;
+			body+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}')`;
 		}
-		message.channel.send(prompt);
+		let embed = new discord.MessageEmbed()
+			.setTitle("Multiple results match this search. Reply with the number of your intended game.")
+			.setDescription(body);
+		message.channel.send(embed);
 		app = await messageValidate(message, candidates, i);
 	} else {
 		app = candidates[0];
