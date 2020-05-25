@@ -1,5 +1,5 @@
 const https = require('https');
-const leven = require('leven');
+const Fuse = require('fuse.js');
 const discord = require('discord.js');
 const applist = require('./applist.json');
 
@@ -22,19 +22,15 @@ function httpsget(url) {	//async function for http get requests url in data out.
 }
 
 async function getCandidates(arg) {	//gets a list of candidates for the query
-	//console.log(arg);
 	arg = arg.replace(/[^\da-zA-Z]/g, '').toLowerCase();	//strips names in app list of non alphanumeric characters
-	let sorted = applist.applist.apps.map(({ name }, i) => {	//maps two new values to the app list: original index and levenshtein distance
-		name = name.replace(/[^\da-zA-Z]/g, '').toLowerCase();
-		return { l:leven(arg,name), i }							//sorts the app list by ascending levenshtein distance
-	}).sort(({ l: a }, { l: b }) => {
-		return a - b
-	});
-	//console.log(sorted);
+	for (app in applist.apps) app.name.replace(/[^\da-zA-Z]/g, '').toLowerCase();
+	const fuse = new Fuse(applist.apps, {includeScore:true, keys:['name']});
+	let sorted = fuse.search(arg);
+	console.log(sorted.slice(0,4));
 	let out = [];
-	let l = sorted[0].l;
+	let score = sorted[0].score;
 	for (e of sorted) {		//creates an output array of all of the results with the lowest levenshtein number
-		if (e.l != l) break;
+		if (e.score != score) break;
 		out.push(e);
 	}
 	return out.map((e) => {
