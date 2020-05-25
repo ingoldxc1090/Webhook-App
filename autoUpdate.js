@@ -2,8 +2,6 @@ const https = require('https');
 const discord = require('discord.js');
 const applist = require('./applist.json');
 
-let appIDArray = [monitorApps.length];
-
 function httpsget(url) {		//async function for http get requests url in data out.  It just works
     return new Promise((resolve, reject) => {
         https.get(url, (res) => {
