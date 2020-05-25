@@ -49,13 +49,11 @@ function cleanText(content) {
     return {content, imageList};
 }
 
-async function getUpdate(client, app, delay) {	//gets the latest update for the selected game and formats it for sending as an embed
+async function getUpdate(client, app, channel, delay) {	//gets the latest update for the selected game and formats it for sending as an embed
 	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1`));
-	if (data.appnews.count === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`))
 	for (i = 1; !(data.appnews.newsitems[0].feedname === "steam_community_announcements"); i++) {
-		//if ((i+1) > data.appnews.count) return message.channel.send(`No news found for "${message.content}".`);
 		data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1&enddate=${data.appnews.newsitems[0].date-1}`));
-		if (data.appnews.newsitems.length === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`));
+		if (data.appnews.newsitems.length === 0) return;
 	}
 	
 	//new article check
@@ -76,7 +74,7 @@ async function getUpdate(client, app, delay) {	//gets the latest update for the 
 			else embed.setDescription(contents.content.substring((i-1)*2048, (i*2048)-1));
 			if (`${data.appnews.newsitems[0].title} (${i}/${Math.ceil(contents.content.length/2048)})`.length > 256) embed.setTitle(data.appnews.newsitems[0].title.substring(256 - `... (${i}/${Math.ceil(contents.content.length/2048)})`.length) + `... (${i}/${Math.ceil(contents.content.length/2048)})`);
 			else embed.setTitle(data.appnews.newsitems[0].title + ` (${i}/${Math.ceil(contents.content.length/2048)})`);
-			message.channel.send(embed);
+			(await client.channels.fetch(channel)).send(embed);
 		}
 	}else{
 		let embed = new discord.MessageEmbed()
@@ -89,18 +87,18 @@ async function getUpdate(client, app, delay) {	//gets the latest update for the 
 		if (contents.imageList.length > 0) embed.setImage(contents.imageList[0]);
 		if (data.appnews.newsitems[0].title.length > 256) embed.setTitle(data.appnews.newsitems[0].title.substring(256 - '...'.length));
 		else embed.setTitle(data.appnews.newsitems[0].title);
-		message.channel.send(embed);
+		(await client.channels.fetch(channel)).send(embed);
 	}
 	
 	
 }
 
-exports.run = async (client, appIDArray, delay) => {
+exports.run = async (client, appIDArray, channel, delay) => {
 
 	for(appID of appIDArray){
 		let name = applist.find(app => app.appid == appID);
 		let app = { name, appID };
-		getUpdate(client, app, delay);
+		getUpdate(client, app, channel, delay);
 	}
 
 }

@@ -31,13 +31,13 @@ client.on("ready", () => {	//log bot startup
 	/*client.generateInvite(536995856)
 		.then(link => console.log(`Generated bot invite link: ${link}`))
 		.catch(console.error);*/
-	schedule.scheduleJob(`* /${delay} * * * *`, () => autoUpdate.run(client, config.monitorApps, delay));
+	schedule.scheduleJob(`* /${delay} * * * *`, () => autoUpdate.run(client, config.monitorApps, config.channelID, delay));
 	
 });
 
 client.on("message", (message) => {		//messages event listener
 	if (message.author.bot) return;
-	if (message.channel.id == config.channelid && !(parseInt(message.content) <= 100)) {
+	if (message.channel.id == config.channelID && !(parseInt(message.content) <= 100)) {
 		try{
 			const update = require("./update.js");
 			update.run(client, message);
