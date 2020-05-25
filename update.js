@@ -21,7 +21,8 @@ function httpsget(url) {	//async function for http get requests url in data out.
 	});
 }
 
-function getCandidates(arg) {	//gets a list of candidates for the query
+async function getCandidates(arg) {	//gets a list of candidates for the query
+	//console.log(arg);
 	arg = arg.replace(/[^\da-zA-Z]/g, '').toLowerCase();	//strips names in app list of non alphanumeric characters
 	let sorted = applist.applist.apps.map(({ name }, i) => {	//maps two new values to the app list: original index and levenshtein distance
 		name = name.replace(/[^\da-zA-Z]/g, '').toLowerCase();
@@ -29,6 +30,7 @@ function getCandidates(arg) {	//gets a list of candidates for the query
 	}).sort(({ l: a }, { l: b }) => {
 		return a - b
 	});
+	//console.log(sorted);
 	let out = [];
 	let l = sorted[0].l;
 	for (e of sorted) {		//creates an output array of all of the results with the lowest levenshtein number
@@ -58,7 +60,7 @@ async function getUpdate(message, app) {	//gets the latest update for the select
 	let batchSize = 10;
 	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=${batchSize}`));
 	if (data.appnews.count === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`))
-	for (i = 0; !(data.appnews.newsitems[i].feedname === "steam_community_announcements"); i++)
+	for (i = 0; !(data.appnews.newsitems[i].feedname === "steam_community_announcements"); i++) {
 		if (i === data.appnews.newsitems.length-1) {
 			data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=${batchSize}&enddate=${data.appnews.newsitems[i].date-1}`));
 			if (data.appnews.newsitems.length === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`));
@@ -128,17 +130,24 @@ function cleanText(content) {
     return {content, imageList};
 }
 
+async function getDeveloper(id) {			
+	return JSON.parse(await httpsget(`https://steamspy.com/api.php?request=appdetails&appid=${id}`)).developer;
+}
+
 exports.run = async (client, message) => {
 	messagesForDeletion = [];
-	let candidates = getCandidates(message.content);
+	let candidates = await getCandidates(message.content);
 	let appid = "";
+	console.log(candidates);
 	if (candidates.length > 1) {		//if multiple results match the lowest levenshtein number asks the user to verify their intended game
+		
 		let body = [""];
 		let i = 0;
 		let j = 0;
 		let developers = [];
-		for (e of candidates)  developers.push(JSON.parse(await httpsget(`https://steamspy.com/api.php?request=appdetails&appid=${e.appid}`)).developer);
+		for (e of candidates)  developers.push(getDeveloper(e.appid));
 		await Promise.all(developers);
+		console.log(developers);
 		for (e of candidates) {
 			i++;
 			if (i%10 == 1 && i != 1) {
@@ -148,7 +157,7 @@ exports.run = async (client, message) => {
 				j++;
 				body[j] = "";
 			}
-			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}') by ${developers[i-1]}`;
+			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}') by ${await developers[i-1]}`;
 		}
 		let embed = new discord.MessageEmbed().setDescription(body[j]).setFooter(`Showing page ${j+1} of ${j+1}`);
 		messagesForDeletion.push((await message.channel.send(embed)).id);
@@ -161,6 +170,7 @@ exports.run = async (client, message) => {
 	} else {
 		app = candidates[0];
 	}
+	console.log(app);
 	await getUpdate(message, app);
 	message.channel.bulkDelete(messagesForDeletion);
 }
