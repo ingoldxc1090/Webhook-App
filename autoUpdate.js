@@ -20,14 +20,6 @@ function httpsget(url) {		//async function for http get requests url in data out
 	});
 }
 
-/*
-function getAppIDs {
-	for(i = 0; i < monitorApps.length; i++){
-		appIDArray[i] = monitorApps[i];
-	}
-}
-*/
-
 function cleanText(content) {
 	var startIndex = 0, index;
     while ((index = content.indexOf('[url=', startIndex)) > -1) {
@@ -60,7 +52,6 @@ function cleanText(content) {
 }
 
 async function getUpdate(client, appID) {	//gets the latest update for the selected game and formats it for sending as an embed
-	//messagesForDeletion.push((await message.channel.send(`Searching for news for ${app.name}.`)).id);
 	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1`));
 	if (data.appnews.count === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`))
 	for (i = 1; !(data.appnews.newsitems[0].feedname === "steam_community_announcements"); i++) {
@@ -100,21 +91,9 @@ async function getUpdate(client, appID) {	//gets the latest update for the selec
 }
 
 exports.run = async (client, appIDArray) => {
-	/*
-	getAppIDs();
-	let candidates = getCandidates(appIDArray.content);
-	let appid = "";
-	let developer = JSON.parse(await httpsget(`https://steamspy.com/api.php?request=appdetails&appid=${e.appid}`)).developer;
-	
-	for(i = 0; i < monitorApps.length; i++){
-		appIDArray[i] = monitorApps[i];
-	}
-	
-	*/
-	
+
 	for(appID of appIDArray){
 		getUpdate(appID, client);
 	}
 
-	//await getUpdate(appIDArray, app);
 }
