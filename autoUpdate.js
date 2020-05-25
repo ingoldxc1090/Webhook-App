@@ -57,8 +57,13 @@ async function getUpdate(client, appID, delay) {	//gets the latest update for th
 		data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1&enddate=${data.appnews.newsitems[0].date-1}`));
 		if (data.appnews.newsitems.length === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`));
 	}
+	
+	//new article check
+	if(data.appnews.newsitems[0].date*1000 < Date.now()-delay) return;
+	
 	let contents = cleanText(data.appnews.newsitems[0].contents);
 	
+	//post Rich Embed
 	if(contents.content.length > 2048) {
 		for (i = 1; i <= Math.ceil(contents.content.length/2048); i++) {
 			let embed = new discord.MessageEmbed()
@@ -87,14 +92,13 @@ async function getUpdate(client, appID, delay) {	//gets the latest update for th
 		message.channel.send(embed);
 	}
 	
-	//new article check
 	
 }
 
-exports.run = async (client, appIDArray) => {
+exports.run = async (client, appIDArray, delay) => {
 
 	for(appID of appIDArray){
-		getUpdate(appID, client, delay);
+		getUpdate(client, appID, delay);
 	}
 
 }
