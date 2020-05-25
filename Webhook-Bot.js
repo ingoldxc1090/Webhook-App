@@ -2,7 +2,11 @@ const Discord = require("discord.js");
 const client = new Discord.Client();
 const https = require("https");
 const fs = require("fs");
+const schedule = require("node-schedule");
+const autoUpdate = require("./autoUpdate.js");
 const config = require("./config.json");
+
+const delay = 10;
 
 function httpsget(url) {	//async function for http get requests url in data out. It just works
 	return new Promise((resolve, reject) => {
@@ -23,10 +27,12 @@ async function getList() {	//function to get and save list of all apps registere
 }
 
 client.on("ready", () => {	//log bot startup
-	console.log("Client started");
-	client.generateInvite(536995856)
+	console.log("Client started")
+	/*client.generateInvite(536995856)
 		.then(link => console.log(`Generated bot invite link: ${link}`))
-		.catch(console.error);
+		.catch(console.error);*/
+	schedule.scheduleJob(`* /${delay} * * * *`, () => autoUpdate.run(client, config.monitorApps, delay));
+	
 });
 
 client.on("message", (message) => {		//messages event listener
