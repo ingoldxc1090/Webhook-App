@@ -49,7 +49,7 @@ function cleanText(content) {
     return {content, imageList};
 }
 
-async function getUpdate(client, appID, delay) {	//gets the latest update for the selected game and formats it for sending as an embed
+async function getUpdate(client, app, delay) {	//gets the latest update for the selected game and formats it for sending as an embed
 	let data = JSON.parse(await httpsget(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${app.appid}&count=1`));
 	if (data.appnews.count === 0) return message.channel.send(new discord.MessageEmbed().setDescription(`No news found for [${app.name}](https://store.steampowered.com/app/${app.appid} 'https://store.steampowered.com/app/${app.appid}')`))
 	for (i = 1; !(data.appnews.newsitems[0].feedname === "steam_community_announcements"); i++) {
@@ -98,7 +98,9 @@ async function getUpdate(client, appID, delay) {	//gets the latest update for th
 exports.run = async (client, appIDArray, delay) => {
 
 	for(appID of appIDArray){
-		getUpdate(client, appID, delay);
+		let name = applist.find(app => app.appid == appID);
+		let app = { name, appID };
+		getUpdate(client, app, delay);
 	}
 
 }
