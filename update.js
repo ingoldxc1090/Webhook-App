@@ -1,7 +1,7 @@
 const https = require('https');
 const Fuse = require('fuse.js');
 const discord = require('discord.js');
-const applist = require('./applist.json');
+const applist = require('./gamelist.json');
 
 let messagesForDeletion = [];
 
