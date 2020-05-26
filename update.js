@@ -22,20 +22,16 @@ function httpsget(url) {	//async function for http get requests url in data out.
 }
 
 async function getCandidates(arg) {	//gets a list of candidates for the query
-	arg = arg.replace(/[^\da-zA-Z]/g, '').toLowerCase();	//strips names in app list of non alphanumeric characters
-	for (app in applist.apps) app.name.replace(/[^\da-zA-Z]/g, '').toLowerCase();
-	const fuse = new Fuse(applist.apps, {includeScore:true, keys:['name']});
+	const fuse = new Fuse(applist, {includeScore:true, keys:['name']});
 	let sorted = fuse.search(arg);
 	console.log(sorted.slice(0,4));
 	let out = [];
 	let score = sorted[0].score;
 	for (e of sorted) {		//creates an output array of all of the results with the lowest levenshtein number
 		if (e.score != score) break;
-		out.push(e);
+		out.push(e.item);
 	}
-	return out.map((e) => {
-		return applist.applist.apps[e.i];
-	});
+	return out;
 }
 
 async function messageValidate(message, candidates, i) {		// verifies that user input in game selection is a valid input (moved to function to enable recursive structure)
@@ -126,10 +122,6 @@ function cleanText(content) {
     return {content, imageList};
 }
 
-async function getDeveloper(id) {			
-	return JSON.parse(await httpsget(`https://steamspy.com/api.php?request=appdetails&appid=${id}`)).developer;
-}
-
 exports.run = async (client, message) => {
 	messagesForDeletion = [];
 	let candidates = await getCandidates(message.content);
@@ -140,10 +132,6 @@ exports.run = async (client, message) => {
 		let body = [""];
 		let i = 0;
 		let j = 0;
-		let developers = [];
-		for (e of candidates)  developers.push(getDeveloper(e.appid));
-		await Promise.all(developers);
-		console.log(developers);
 		for (e of candidates) {
 			i++;
 			if (i%10 == 1 && i != 1) {
@@ -153,15 +141,10 @@ exports.run = async (client, message) => {
 				j++;
 				body[j] = "";
 			}
-			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}') by ${await developers[i-1]}`;
+			body[j]+=`\n${i}. [${e.name}](https://store.steampowered.com/app/${e.appid} 'https://store.steampowered.com/app/${e.appid}') by ${e.developers}`;
 		}
 		let embed = new discord.MessageEmbed().setDescription(body[j]).setFooter(`Showing page ${j+1} of ${j+1}`);
 		messagesForDeletion.push((await message.channel.send(embed)).id);
-		/*for (k = 0; k < body.length; k++){
-			let embed = new discord.MessageEmbed().setDescription(body[k]);
-			if(k == 0) embed.setTitle("Multiple results match this search. Reply with the number of your intended game.");
-			message.channel.send(embed);	
-		}*/
 		app = await messageValidate(message, candidates, i);
 	} else {
 		app = candidates[0];
