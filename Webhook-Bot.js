@@ -33,7 +33,7 @@ async function getList() {	//function to get and save list of all apps registere
 	let applist = require("./applist.json");
 	let newapps = [];
 	let i = 1
-	for(searchApp of data) {
+	for (searchApp of data) {
 		process.stdout.write(`Checking app ${i} of ${data.length}`);
 		let listApp = applist.find(app => app.appid == searchApp.appid);
 		if (listApp === undefined) newapps.push(searchApp);
@@ -44,7 +44,7 @@ async function getList() {	//function to get and save list of all apps registere
 	i = 1;
 	let rcount = 1;
 	let errorApps = [];
-	for(app of newapps) {
+	for (app of newapps) {
 		process.stdout.write(`Downloading data for app ${i} of ${newapps.length}`);
 		if (app.apptype === undefined) {
 			try {
@@ -61,9 +61,9 @@ async function getList() {	//function to get and save list of all apps registere
 		process.stdout.write("\r\x1b[K");
 	}
 	i = 1;
-	let failedApps = [];
+	let failedApps = {names:[], items:[]};
 	console.log(`Error downloading data for ${errorApps.length} apps`);
-	for(app of errorApps) {
+	for (app of errorApps) {
 		process.stdout.write(`Retrying download for ${app.name} app ${i} of ${errorApps.length}`);
 		try {
 			let appdata = JSON.parse(await httpsget(`https://store.steampowered.com/api/appdetails/?appids=${app.appid}`))[app.appid.toString()];
@@ -72,13 +72,22 @@ async function getList() {	//function to get and save list of all apps registere
 				newapps.find(newapp => newapp.appid == app.id) = app;
 			}
 		} catch {
-			failedApps.push(app.name)
+			failedApps.names.push(app.name);
+			failedApps.items.push(app);
 		}
 		i++;
 		process.stdout.write("\r\x1b[K");
 	}
+	for (i = 0; i < newapps.length, i++) {
+		for (app of failedApps.items) {
+			if (newapp[i] === app) {
+				newapps.splice(i,1);
+				i--;
+			}	
+		}
+	}
 	applist.concat(newapps);
-	if (failedApps.length > 0) console.log(`Failed to download data for: ${failedApps.toString()}`);
+	if (failedApps.length > 0) console.log(`Failed to download data for: ${failedApps.names.toString()}`);
 	await fs.promises.writeFile("applist.json", JSON.stringify(applist));
 	await fs.promises.writeFile('gamelist.json', JSON.stringify(applist.filter(app => app.apptype === 'game')))	
 }
@@ -89,7 +98,6 @@ client.on("ready", () => {	//log bot startup
 		.then(link => console.log(`Generated bot invite link: ${link}`))
 		.catch(console.error);*/
 	//schedule.scheduleJob(`* /${delay} * * * *`, () => autoUpdate.run(client, config.monitorApps, config.channelID, delay));
-	
 });
 
 client.on("message", (message) => {		//messages event listener
@@ -102,7 +110,6 @@ client.on("message", (message) => {		//messages event listener
 			console.error(err);
 		}
 	}
-	
 });
 
 client.on("error", () => {});	//bot error handling (prevents crash on loss of network connection)
