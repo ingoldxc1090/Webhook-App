@@ -1,6 +1,6 @@
 const https = require('https');
 const discord = require('discord.js');
-const applist = require('./applist.json');
+const applist = require('./gamelist.json');
 
 function httpsget(url) {		//async function for http get requests url in data out.  It just works
     return new Promise((resolve, reject) => {
